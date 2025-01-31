@@ -6,6 +6,7 @@ module player_physics #(
   parameter DUCKING_DOWNWARD_ACCELERATION = 0,
 ) (
   input clk,
+  input reset,
   input [1:0] game_tick, // [0] pulses, and then [1] pulses on following clock cycle
   input jump_pulse,      // high for one clock cycle at start of jump (set initial velocity)
   input button_down,     // high if down button is pressed
@@ -87,6 +88,7 @@ module player_controller #(
     .SPEED_DROP_ACCELERATION(0),
   ) (
     .clk(clk),
+    .reset(reset),
     .game_tick(game_tick),
     .jump_pulse(jump_pulse),
     .button_down(button_down),
