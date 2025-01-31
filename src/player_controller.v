@@ -71,8 +71,8 @@ module player_controller #(
         end
         DUCKING: begin
           if      (game_tick[0] &&  crash      ) game_state <= GAME_OVER;
-          else if (game_tick[0] && !button_down) game_state <= DUCKING;
-          else                                   game_state <= RUNNING;
+          else if (game_tick[0] && !button_down) game_state <= RUNNING;
+          else                                   game_state <= DUCKING;
         end
         GAME_OVER: begin
           if      (game_tick[0] &&  button_up  ) game_state <= RUNNING;
