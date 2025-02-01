@@ -1,22 +1,51 @@
 `default_nettype none
 
 module player_physics #(
-  parameter INITIAL_JUMP_VELOCITY = 0,
-  parameter DOWNWARD_ACCELERATION = 0,
-  parameter DUCKING_DOWNWARD_ACCELERATION = 0,
+  parameter INITIAL_JUMP_VELOCITY = 8'h00,
+  parameter DOWNWARD_ACCELERATION = 8'h00,
+  parameter FASTDROP_VELOCITY = 8'h00,
 ) (
   input clk,
   input reset,
-  input [1:0] game_tick, // [0] pulses, and then [1] pulses on following clock cycle
+  input [1:0] game_tick, // enable for the FF that stores result of velocity [0] and position [1]
   input jump_pulse,      // high for one clock cycle at start of jump (set initial velocity)
   input button_down,     // high if down button is pressed
-  output jump_done,      // not(msb of adder) -- only sampled when game_tick_en[1] == 1
-  output [7:0] position,
+  output wire jump_done,      // not(msb of adder) -- only sampled when game_tick[1] == 1
+  output reg [7:0] position,
 );
 
-  reg [$clog2(INITIAL_JUMP_VELOCITY):0] velocity
-  // 2s complement negative position
-  // sign bit -- (0 on ground, 1 in air)
+  // reg [$clog2(INITIAL_JUMP_VELOCITY):0] calc_velocity;
+
+  wire [7:0] adder_in1, adder_in2, adder_res;
+  reg [7:0] velocity;
+  wire [7:0] active_vel;
+
+  // If player presses down, override velocity calculated by gravity with FASTDROP_VELOCITY
+  assign active_vel = (button_down) ? (FASTDROP_VELOCITY) : velocity;
+
+  // game_tick[1] == 0 means calculating velocity, game_tick[1] == 1 means calculating position
+  assign adder_in1 = (game_tick[1]) ? (active_vel) : (DOWNWARD_ACCELERATION);
+  assign adder_in2 = (game_tick[1]) ? (position) : (velocity);
+  assign adder_res = adder_in1 + adder_in2;
+
+  // Only sampled when game_tick[1] == 1, so jump_done == 1 when calculated position overflows
+  assign jump_done = ~adder_res[7];
+
+  always @ (posedge clk) begin
+    if (jump_pulse) begin
+      velocity <= INITIAL_JUMP_VELOCITY;
+      position <= 8'h00;  // Replace with ground position
+    end
+
+    if (game_tick[0]) 
+      velocity <= adder_res;
+    
+    if (game_tick[1]) begin
+      position <= adder_res;
+      if (~adder_res[7])
+        position[7:0] <= 8'h00  // Replace with ground position
+    end
+  end
 
 endmodule
 
@@ -71,8 +100,8 @@ module player_controller #(
         end
         DUCKING: begin
           if      (game_tick[0] &&  crash      ) game_state <= GAME_OVER;
-          else if (game_tick[0] && !button_down) game_state <= RUNNING;
-          else                                   game_state <= DUCKING;
+          else if (game_tick[0] && !button_down) game_state <= DUCKING;
+          else                                   game_state <= RUNNING;
         end
         GAME_OVER: begin
           if      (game_tick[0] &&  button_up  ) game_state <= RUNNING;
