@@ -29,10 +29,13 @@ module player_physics #(
   assign adder_res = adder_in1 + adder_in2;
 
   // Only sampled when game_tick[1] == 1, so jump_done == 1 when calculated position overflows
-  assign jump_done = ~adder_res[7];
+  assign jump_done = (~adder_res[7] & ~reset);
 
   always @ (posedge clk) begin
-    if (jump_pulse) begin
+    if (reset) begin
+      velocity <= 8'h00;
+      position <= 8'h00;  // Replace with ground position
+    end else if (jump_pulse) begin
       velocity <= INITIAL_JUMP_VELOCITY;
       position <= 8'h00;  // Replace with ground position
     end
@@ -100,8 +103,8 @@ module player_controller #(
         end
         DUCKING: begin
           if      (game_tick[0] &&  crash      ) game_state <= GAME_OVER;
-          else if (game_tick[0] && !button_down) game_state <= DUCKING;
-          else                                   game_state <= RUNNING;
+          else if (game_tick[0] && !button_down) game_state <= RUNNING;
+          else                                   game_state <= DUCKING;
         end
         GAME_OVER: begin
           if      (game_tick[0] &&  button_up  ) game_state <= RUNNING;
