@@ -39,23 +39,22 @@ module player_physics #(
       if (jump_pulse) begin
         velocity <= INITIAL_JUMP_VELOCITY;
         position <= 8'h00;  // Replace with ground position
-      end
+      end else begin
+        if (game_tick[0] & position[7]) begin
+          velocity <= adder_res;
+        end
+        
+        if (game_tick[1]) begin
+          position <= adder_res;
+          if (~adder_res[7]) begin
+            position[7:0] <= 8'h00  // Replace with ground position
+            velocity <= 8'h00;
+          end
+        end 
 
-      if (game_tick[0]) 
-        velocity <= adder_res;
-      
-      if (game_tick[1]) begin
-        position <= adder_res;
-        if (~adder_res[7])
-          position[7:0] <= 8'h00  // Replace with ground position
-      end 
-
-      if (button_down) begin 
-        velocity <= FASTDROP_VELOCITY;
-      end
-
-      if (~position[7]) begin
-        velocity <= 8'h00;
+        if (button_down) begin 
+          velocity <= 8'h00;
+        end
       end
     end
   end
