@@ -1,78 +1,13 @@
 `default_nettype none
 
-module player_physics #(
-  parameter INITIAL_JUMP_VELOCITY = 8'h00,
-  parameter DOWNWARD_ACCELERATION = 8'h00,
-  parameter FASTDROP_VELOCITY = 8'h00,
-) (
+module player_controller (
   input clk,
-  input reset,
-  input [1:0] game_tick, // enable for the FF that stores result of velocity [0] and position [1]
-  input jump_pulse,      // high for one clock cycle at start of jump (set initial velocity)
-  input button_down,     // high if down button is pressed
-  output wire jump_done,      // not(msb of adder) -- only sampled when game_tick[1] == 1
-  output reg [7:0] position,
-);
-
-  // reg [$clog2(INITIAL_JUMP_VELOCITY):0] calc_velocity;
-
-  wire [7:0] adder_in1, adder_in2, adder_res;
-  reg [7:0] velocity;
-  wire [7:0] active_vel;
-
-  // If player presses down, override velocity calculated by gravity with FASTDROP_VELOCITY
-  assign active_vel = (button_down) ? (FASTDROP_VELOCITY) : velocity;
-
-  // game_tick[1] == 0 means calculating velocity, game_tick[1] == 1 means calculating position
-  assign adder_in1 = (game_tick[1]) ? (active_vel) : (DOWNWARD_ACCELERATION);
-  assign adder_in2 = (game_tick[1]) ? (position) : (velocity);
-  assign adder_res = adder_in1 + adder_in2;
-
-  // Only sampled when game_tick[1] == 1, so jump_done == 1 when calculated position overflows
-  assign jump_done = ~adder_res[7];
-
-  always @ (posedge clk) begin
-    if (reset) begin
-      velocity <= 8'h00;
-      position <= 8'h00;  // Replace with ground position
-    end else begin
-      if (jump_pulse) begin
-        velocity <= INITIAL_JUMP_VELOCITY;
-        position <= 8'h00;  // Replace with ground position
-      end else begin
-        if (game_tick[0] & position[7]) begin
-          velocity <= adder_res;
-        end
-        
-        if (game_tick[1]) begin
-          position <= adder_res;
-          if (~adder_res[7]) begin
-            position[7:0] <= 8'h00  // Replace with ground position
-            velocity <= 8'h00;
-          end
-        end 
-
-        if (button_down) begin 
-          velocity <= 8'h00;
-        end
-      end
-    end
-  end
-
-endmodule
-
-module player_controller #(
-  parameter INITIAL_JUMP_VELOCITY = 0,
-  parameter ACCELERATION = 0,
-  parameter SPEED_DROP_ACCELERATION = 0,
-) (
-  input clk,
-  input reset,
+  input reset_n,
   input [1:0] game_tick,
   input button_up,
   input button_down,
   input crash,
-  output reg [7:0] player_position,
+  output reg [5:0] player_position,
   output reg game_start_pulse,
   output reg game_over_pulse,
   output reg jump_pulse,
@@ -91,8 +26,8 @@ module player_controller #(
   reg [2:0] game_state;
 
   always @(posedge(clk)) begin
-    if (reset) begin
-      current_state <= 3'b000;
+    if (!reset_n) begin
+      current_state <= RESTART;
     end else begin
       case (current_state)
         RESTART: begin
@@ -123,13 +58,9 @@ module player_controller #(
     end
   end
 
-  player_physics u_player_physics #(
-    .INITIAL_JUMP_VELOCITY(0),
-    .ACCELERATION(0),
-    .SPEED_DROP_ACCELERATION(0),
-  ) (
+  player_physics u_player_physics (
     .clk(clk),
-    .reset(reset),
+    .reset_n(reset_n),
     .game_tick(game_tick),
     .jump_pulse(jump_pulse),
     .button_down(button_down),
