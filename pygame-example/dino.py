@@ -4,7 +4,7 @@ from pygame.locals import *
 
 PIXEL_DIVISION = 4
 ACCELERATION = 1
-INITIAL_JUMP_VELOCITY = -6
+INITIAL_JUMP_VELOCITY = -7
 FAST_DROP_VELOCITY = 6
 
 pygame.init()
@@ -21,12 +21,18 @@ fast_drop = False
 
 obstacle_position = 640
 
+max_vel = 0
+min_vel = 0
+max_pos = 0
+min_pos = 0
+
 while game_running:
+
 
     for event in pygame.event.get():
         # Check for QUIT event
         if event.type == pygame.QUIT:
-            running = False
+            game_running = False
 
     screen.fill(Color(0x22, 0x22, 0x22))
     for i in range(0, 480, PIXEL_DIVISION*2):
@@ -55,6 +61,15 @@ while game_running:
             player_velocity = INITIAL_JUMP_VELOCITY
             jumping = True
 
+    if player_velocity > max_vel:
+        max_vel = player_velocity
+    if player_velocity < min_vel:
+        min_vel = player_velocity
+    if player_position > max_pos:
+        max_pos = player_position
+    if player_position < min_pos:
+        min_pos = player_position
+
     if update_velocity:
         player_velocity += ACCELERATION
     update_velocity = True
@@ -73,3 +88,7 @@ while game_running:
 
     clock.tick(20)
 
+print("max vel: ", max_vel)
+print("min vel: ", min_vel)
+print("max pos: ", max_pos)
+print("min pos: ", min_pos)
